@@ -19,8 +19,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// CORS setup (allow only your frontend and local dev)
+const allowedOrigins = [
+  'https://emergency-blood.vercel.app', // your deployed frontend
+  'http://localhost:5173' // local dev (optional)
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  }
+}));
+
 app.use(express.json());
 app.use(helmet());
 app.use(mongoSanitize());
