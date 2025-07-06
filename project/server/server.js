@@ -38,6 +38,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(helmet());
+app.set('trust proxy', 1);
 app.use(mongoSanitize());
 app.use(xss());
 
