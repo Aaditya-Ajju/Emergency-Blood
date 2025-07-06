@@ -20,7 +20,12 @@ router.get('/stats', protect, async (req, res) => {
       const totalRequests = await BloodRequest.countDocuments({
         bloodGroup: req.user.bloodGroup,
         city: req.user.city,
-        status: 'active'
+        status: 'active',
+        // Don't count requests the donor has already responded to or that have been accepted
+        $and: [
+          { 'donors.donor': { $ne: userId } },
+          { 'donors.status': { $ne: 'accepted' } }
+        ]
       })
 
       const totalDonations = await BloodRequest.countDocuments({
@@ -28,22 +33,22 @@ router.get('/stats', protect, async (req, res) => {
         'donors.status': 'donated'
       })
 
-      const activeRequests = await BloodRequest.countDocuments({
-        bloodGroup: req.user.bloodGroup,
+      const acceptedRequests = await BloodRequest.countDocuments({
+        'donors.donor': userId,
+        'donors.status': 'accepted',
         status: 'active'
       })
 
-      const nearbyRequests = await BloodRequest.countDocuments({
-        bloodGroup: req.user.bloodGroup,
-        city: req.user.city,
-        status: 'active'
+      const completedDonations = await BloodRequest.countDocuments({
+        'donors.donor': userId,
+        'donors.status': 'donated'
       })
 
       stats = {
         totalRequests,
         totalDonations,
-        activeRequests,
-        nearbyRequests
+        acceptedRequests,
+        completedDonations
       }
     } else {
       // Receiver statistics
@@ -51,7 +56,7 @@ router.get('/stats', protect, async (req, res) => {
         requestedBy: userId
       })
 
-      const totalDonations = await BloodRequest.countDocuments({
+      const completedRequests = await BloodRequest.countDocuments({
         requestedBy: userId,
         status: 'completed'
       })
@@ -61,16 +66,20 @@ router.get('/stats', protect, async (req, res) => {
         status: 'active'
       })
 
-      const nearbyRequests = await BloodRequest.countDocuments({
-        city: req.user.city,
+      const pendingRequests = await BloodRequest.countDocuments({
+        requestedBy: userId,
         status: 'active'
       })
 
+      // Calculate success rate
+      const successRate = totalRequests > 0 ? Math.round((completedRequests / totalRequests) * 100) : 0;
+
       stats = {
         totalRequests,
-        totalDonations,
+        completedRequests,
         activeRequests,
-        nearbyRequests
+        pendingRequests,
+        successRate
       }
     }
 
@@ -92,10 +101,10 @@ router.get('/recent-requests', protect, async (req, res) => {
     let requests = []
 
     if (userRole === 'donor') {
-      // Get nearby requests for donor
+      // Get requests the donor has accepted
       requests = await BloodRequest.find({
-        bloodGroup: req.user.bloodGroup,
-        city: req.user.city,
+        'donors.donor': userId,
+        'donors.status': 'accepted',
         status: 'active'
       })
         .populate('requestedBy', 'name phone')

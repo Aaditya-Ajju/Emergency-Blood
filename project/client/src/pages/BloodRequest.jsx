@@ -1,25 +1,78 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { FaTint, FaMapMarkerAlt, FaPhoneAlt, FaExclamationTriangle } from 'react-icons/fa'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import { FaTint, FaMapMarkerAlt, FaPhoneAlt, FaExclamationTriangle } from 'react-icons/fa'
 
 const BloodRequest = () => {
   const { user } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
-  const { register, handleSubmit, formState: { errors }, reset } = useForm()
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    patientName: '',
+    bloodGroup: '',
+    unitsNeeded: '',
+    hospitalName: '',
+    hospitalAddress: '',
+    city: '',
+    state: '',
+    pincode: '',
+    requiredBy: '',
+    urgency: 'medium',
+    contactPerson: '',
+    contactNumber: '',
+    additionalInfo: ''
+  })
 
-  const onSubmit = async (data) => {
-    setIsLoading(true)
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
     try {
-      await axios.post('/api/blood-requests', data)
-      toast.success('Blood request submitted successfully!')
-      reset()
+      // Fix date handling - ensure it's a valid date
+      let requiredByDate;
+      if (formData.requiredBy) {
+        const date = new Date(formData.requiredBy);
+        if (isNaN(date.getTime())) {
+          toast.error('Please enter a valid date');
+          setLoading(false);
+          return;
+        }
+        requiredByDate = date.toISOString();
+      } else {
+        toast.error('Please select a required date');
+        setLoading(false);
+        return;
+      }
+
+      const data = {
+        ...formData,
+        unitsNeeded: parseInt(formData.unitsNeeded),
+        requiredBy: requiredByDate
+      }
+
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/blood-requests`, data)
+      toast.success('Blood request created successfully!')
+      navigate('/dashboard')
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit blood request')
+      if (error.response?.data?.errors) {
+        toast.error(
+          error.response.data.errors.map(e => e.msg).join(', ')
+        );
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to create blood request');
+      }
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
@@ -49,7 +102,7 @@ const BloodRequest = () => {
 
           {/* Form */}
           <div className="p-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Patient Information */}
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -58,22 +111,27 @@ const BloodRequest = () => {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="form-label">Patient Name *</label>
+                    <label htmlFor="patientName" className="form-label">Patient Name *</label>
                     <input
-                      {...register('patientName', { required: 'Patient name is required' })}
                       type="text"
+                      id="patientName"
+                      name="patientName"
+                      required
+                      value={formData.patientName}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Enter patient's full name"
                     />
-                    {errors.patientName && (
-                      <p className="mt-1 text-sm text-red-600">{errors.patientName.message}</p>
-                    )}
                   </div>
 
                   <div>
-                    <label className="form-label">Required Blood Group *</label>
+                    <label htmlFor="bloodGroup" className="form-label">Required Blood Group *</label>
                     <select
-                      {...register('bloodGroup', { required: 'Blood group is required' })}
+                      id="bloodGroup"
+                      name="bloodGroup"
+                      required
+                      value={formData.bloodGroup}
+                      onChange={handleChange}
                       className="form-input"
                     >
                       <option value="">Select blood group</option>
@@ -81,48 +139,50 @@ const BloodRequest = () => {
                         <option key={group} value={group}>{group}</option>
                       ))}
                     </select>
-                    {errors.bloodGroup && (
-                      <p className="mt-1 text-sm text-red-600">{errors.bloodGroup.message}</p>
-                    )}
                   </div>
 
                   <div>
-                    <label className="form-label">Units Needed *</label>
+                    <label htmlFor="unitsNeeded" className="form-label">Units Needed *</label>
                     <input
-                      {...register('unitsNeeded', { 
-                        required: 'Units needed is required',
-                        min: { value: 1, message: 'At least 1 unit is required' }
-                      })}
                       type="number"
+                      id="unitsNeeded"
+                      name="unitsNeeded"
+                      required
+                      min="1"
+                      value={formData.unitsNeeded}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Number of units"
                     />
-                    {errors.unitsNeeded && (
-                      <p className="mt-1 text-sm text-red-600">{errors.unitsNeeded.message}</p>
-                    )}
                   </div>
 
                   <div>
-                    <label className="form-label">Urgency Level *</label>
+                    <label htmlFor="urgency" className="form-label">Urgency Level *</label>
                     <select
-                      {...register('urgency', { required: 'Urgency level is required' })}
+                      id="urgency"
+                      name="urgency"
+                      required
+                      value={formData.urgency}
+                      onChange={handleChange}
                       className="form-input"
                     >
                       <option value="">Select urgency</option>
                       {urgencyLevels.map((level) => (
-                        <option key={level.value} value={level.value}>{level.label}</option>
+                        <option key={level.value} value={level.value} className={level.color}>
+                          {level.label}
+                        </option>
                       ))}
                     </select>
-                    {errors.urgency && (
-                      <p className="mt-1 text-sm text-red-600">{errors.urgency.message}</p>
-                    )}
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="form-label">Additional Notes</label>
+                    <label htmlFor="additionalInfo" className="form-label">Additional Notes</label>
                     <textarea
-                      {...register('notes')}
-                      rows={3}
+                      id="additionalInfo"
+                      name="additionalInfo"
+                      rows="3"
+                      value={formData.additionalInfo}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Any additional information about the patient's condition..."
                     />
@@ -138,70 +198,86 @@ const BloodRequest = () => {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="form-label">Hospital Name *</label>
+                    <label htmlFor="hospitalName" className="form-label">Hospital Name *</label>
                     <input
-                      {...register('hospitalName', { required: 'Hospital name is required' })}
                       type="text"
+                      id="hospitalName"
+                      name="hospitalName"
+                      required
+                      value={formData.hospitalName}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Enter hospital name"
                     />
-                    {errors.hospitalName && (
-                      <p className="mt-1 text-sm text-red-600">{errors.hospitalName.message}</p>
-                    )}
                   </div>
 
                   <div>
-                    <label className="form-label">Hospital Address *</label>
+                    <label htmlFor="requiredBy" className="form-label">Required By *</label>
                     <input
-                      {...register('hospitalAddress', { required: 'Hospital address is required' })}
+                      type="date"
+                      id="requiredBy"
+                      name="requiredBy"
+                      required
+                      value={formData.requiredBy}
+                      onChange={handleChange}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="city" className="form-label">City *</label>
+                    <input
                       type="text"
+                      id="city"
+                      name="city"
+                      required
+                      value={formData.city}
+                      onChange={handleChange}
+                      className="form-input"
+                      placeholder="Enter city"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="state" className="form-label">State *</label>
+                    <input
+                      type="text"
+                      id="state"
+                      name="state"
+                      required
+                      value={formData.state}
+                      onChange={handleChange}
+                      className="form-input"
+                      placeholder="Enter state"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="hospitalAddress" className="form-label">Hospital Address *</label>
+                    <input
+                      type="text"
+                      id="hospitalAddress"
+                      name="hospitalAddress"
+                      required
+                      value={formData.hospitalAddress}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Enter hospital address"
                     />
-                    {errors.hospitalAddress && (
-                      <p className="mt-1 text-sm text-red-600">{errors.hospitalAddress.message}</p>
-                    )}
                   </div>
 
                   <div>
-                    <label className="form-label">City *</label>
+                    <label htmlFor="pincode" className="form-label">Pincode *</label>
                     <input
-                      {...register('city', { required: 'City is required' })}
                       type="text"
-                      className="form-input"
-                      placeholder="Enter city"
-                      defaultValue={user?.city}
-                    />
-                    {errors.city && (
-                      <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="form-label">State *</label>
-                    <input
-                      {...register('state', { required: 'State is required' })}
-                      type="text"
-                      className="form-input"
-                      placeholder="Enter state"
-                      defaultValue={user?.state}
-                    />
-                    {errors.state && (
-                      <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="form-label">Pincode *</label>
-                    <input
-                      {...register('pincode', { required: 'Pincode is required' })}
-                      type="text"
+                      id="pincode"
+                      name="pincode"
+                      required
+                      value={formData.pincode}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Enter pincode"
                     />
-                    {errors.pincode && (
-                      <p className="mt-1 text-sm text-red-600">{errors.pincode.message}</p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -214,31 +290,31 @@ const BloodRequest = () => {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="form-label">Contact Person *</label>
+                    <label htmlFor="contactPerson" className="form-label">Contact Person *</label>
                     <input
-                      {...register('contactPerson', { required: 'Contact person is required' })}
                       type="text"
+                      id="contactPerson"
+                      name="contactPerson"
+                      required
+                      value={formData.contactPerson}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Enter contact person name"
-                      defaultValue={user?.name}
                     />
-                    {errors.contactPerson && (
-                      <p className="mt-1 text-sm text-red-600">{errors.contactPerson.message}</p>
-                    )}
                   </div>
 
                   <div>
-                    <label className="form-label">Contact Number *</label>
+                    <label htmlFor="contactNumber" className="form-label">Contact Number *</label>
                     <input
-                      {...register('contactNumber', { required: 'Contact number is required' })}
                       type="tel"
+                      id="contactNumber"
+                      name="contactNumber"
+                      required
+                      value={formData.contactNumber}
+                      onChange={handleChange}
                       className="form-input"
                       placeholder="Enter contact number"
-                      defaultValue={user?.phone}
                     />
-                    {errors.contactNumber && (
-                      <p className="mt-1 text-sm text-red-600">{errors.contactNumber.message}</p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -261,23 +337,23 @@ const BloodRequest = () => {
               <div className="flex justify-end space-x-4">
                 <button
                   type="button"
-                  onClick={() => reset()}
+                  onClick={() => navigate('/dashboard')}
                   className="btn-secondary"
                 >
-                  Clear Form
+                  Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={loading}
                   className="btn-primary"
                 >
-                  {isLoading ? (
+                  {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Submitting...
+                      Creating Request...
                     </div>
                   ) : (
-                    'Submit Request'
+                    'Create Request'
                   )}
                 </button>
               </div>

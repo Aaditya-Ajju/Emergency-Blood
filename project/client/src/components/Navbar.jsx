@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { FaUserCircle, FaTint, FaBars, FaTimes, FaBell, FaTimesCircle } from 'react-icons/fa'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -10,21 +11,51 @@ const Navbar = () => {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (isAuthenticated) {
-      const token = localStorage.getItem('token');
-      axios.get('/api/users/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => setNotifications(res.data))
-        .catch(() => setNotifications([]))
+      fetchNotifications()
     }
   }, [isAuthenticated])
 
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users/notifications`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      setNotifications(response.data)
+      setUnreadCount(response.data.filter(n => !n.isRead).length)
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }
+
   const handleLogout = () => {
     logout()
+    toast.success('Logged out successfully!')
     navigate('/')
+  }
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      // Mark as read
+      await axios.patch(`${import.meta.env.VITE_API_URL}/api/users/notifications/${notification._id}/read`, {}, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      // Open notification details in new tab
+      window.open(`/notification/${notification._id}`, '_blank')
+      
+      // Refresh notifications
+      fetchNotifications()
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
   }
 
   return (
@@ -42,9 +73,16 @@ const Navbar = () => {
             <Link to="/" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
               Home
             </Link>
-            <Link to="/find-donors" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-              Find Donors
-            </Link>
+            {user?.role === 'receiver' && (
+              <Link to="/find-donors" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                Find Donor
+              </Link>
+            )}
+            {user?.role === 'donor' && (
+              <Link to="/find-requests" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                Blood Requests
+              </Link>
+            )}
             <Link to="/emergency" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
               Emergency
             </Link>
@@ -56,16 +94,60 @@ const Navbar = () => {
                 <Link to="/blood-request" className="btn-primary text-sm">
                   Request Blood
                 </Link>
-                <button
-                  className="relative ml-6 focus:outline-none"
-                  onClick={() => setShowNotifications(true)}
-                  aria-label="Show notifications"
-                >
-                  <FaBell className="text-2xl text-gray-700 hover:text-primary-600" />
-                  {notifications.some(n => !n.isRead) && (
-                    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-                  )}
-                </button>
+                {notifications.length > 0 && (
+                  <div className="relative">
+                    <button
+                      className="relative p-2 hover:bg-primary-100 rounded-md"
+                      onClick={() => setShowNotifications(!showNotifications)}
+                    >
+                      <FaBell className="text-2xl text-gray-700 hover:text-primary-600" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                      )}
+                    </button>
+                    {showNotifications && (
+                      <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg z-50 border">
+                        <div className="py-2">
+                          <div className="px-4 py-2 border-b border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+                          </div>
+                          {notifications.length === 0 ? (
+                            <div className="px-4 py-3 text-gray-500">No notifications</div>
+                          ) : (
+                            <div className="max-h-64 overflow-y-auto">
+                              {notifications.map((notification) => (
+                                <div
+                                  key={notification._id}
+                                  onClick={() => handleNotificationClick(notification)}
+                                  className={`px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                                    !notification.isRead ? 'bg-blue-50' : ''
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {notification.title}
+                                      </p>
+                                      <p className="text-xs text-gray-600 mt-1">
+                                        {notification.message}
+                                      </p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        {new Date(notification.createdAt).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    {!notification.isRead && (
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full ml-2"></div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="relative group ml-2">
                   <button className="flex items-center space-x-1 text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                     <FaUserCircle className="text-lg" />
@@ -109,77 +191,22 @@ const Navbar = () => {
         </div>
       </div>
 
-      {showNotifications && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto relative">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-primary-600 text-2xl"
-              onClick={() => setShowNotifications(false)}
-              aria-label="Close notifications"
-            >
-              <FaTimesCircle />
-            </button>
-            <div className="px-6 py-4 border-b font-semibold text-lg">Notifications</div>
-            <div className="px-6 py-4">
-              {notifications.length === 0 ? (
-                <div className="text-gray-500">No notifications</div>
-              ) : notifications.map((n, idx) => (
-                <div
-                  key={idx}
-                  className={`mb-4 p-4 rounded cursor-pointer border ${n.isRead ? 'bg-white' : 'bg-blue-50 border-blue-200'} hover:bg-primary-50 transition`}
-                  onClick={async () => {
-                    if (!n.isRead) {
-                      try {
-                        const token = localStorage.getItem('token');
-                        await axios.patch(`/api/users/notifications/${n._id}/read`, {}, {
-                          headers: { Authorization: `Bearer ${token}` }
-                        });
-                        setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, isRead: true } : x));
-                      } catch {}
-                    }
-                    window.open(`/notification/${n._id}`, '_blank');
-                    setShowNotifications(false);
-                  }}
-                >
-                  <div className="font-medium">{n.title}</div>
-                  <div className="text-sm text-gray-600">{n.message}</div>
-                  {n.sender && (
-                    <div className="mt-1 text-xs text-gray-700">
-                      <b>Donor:</b> {n.sender.name} ({n.sender.bloodGroup})
-                      {n.sender.phone && (
-                        <>
-                          <span className="ml-2">|</span>
-                          <a href={`tel:${n.sender.phone}`} className="text-primary-600 ml-1 underline" onClick={e => e.stopPropagation()}>Contact</a>
-                        </>
-                      )}
-                      {n.sender.city && (
-                        <span className="ml-2">{n.sender.city}, {n.sender.state}</span>
-                      )}
-                    </div>
-                  )}
-                  {n.relatedRequest && (
-                    <div className="mt-1 text-xs text-gray-500">
-                      <b>Request:</b> {n.relatedRequest.patientName} ({n.relatedRequest.bloodGroup})
-                      <span className="ml-2">{n.relatedRequest.hospitalName}, {n.relatedRequest.city}, {n.relatedRequest.state}</span>
-                    </div>
-                  )}
-                  <div className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {isOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
             <Link to="/" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600">
               Home
             </Link>
-            <Link to="/find-donors" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600">
-              Find Donors
-            </Link>
+            {user?.role === 'receiver' && (
+              <Link to="/find-donors" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600">
+                Find Donor
+              </Link>
+            )}
+            {user?.role === 'donor' && (
+              <Link to="/find-requests" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600">
+                Blood Requests
+              </Link>
+            )}
             <Link to="/emergency" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600">
               Emergency
             </Link>

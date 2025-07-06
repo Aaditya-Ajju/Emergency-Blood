@@ -86,6 +86,16 @@ router.get('/', protect, async (req, res) => {
       filter.status = status
     }
 
+    // For donors, filter out requests they've already responded to or that have been accepted
+    if (req.user.role === 'donor') {
+      filter.$and = [
+        // Don't show requests the donor has already responded to
+        { 'donors.donor': { $ne: req.user.id } },
+        // Don't show requests that have been accepted by another donor
+        { 'donors.status': { $ne: 'accepted' } }
+      ]
+    }
+
     const requests = await BloodRequest.find(filter)
       .populate('requestedBy', 'name email phone')
       .sort({ createdAt: -1 })
@@ -111,10 +121,24 @@ router.get('/', protect, async (req, res) => {
 // @access  Private
 router.get('/my-requests', protect, async (req, res) => {
   try {
-    const requests = await BloodRequest.find({ requestedBy: req.user.id })
-      .populate('requestedBy', 'name email phone')
-      .populate('donors.donor', 'name phone bloodGroup city state')
-      .sort({ createdAt: -1 })
+    let requests = []
+    
+    if (req.user.role === 'donor') {
+      // For donors, get requests they have accepted
+      requests = await BloodRequest.find({
+        'donors.donor': req.user.id,
+        'donors.status': 'accepted'
+      })
+        .populate('requestedBy', 'name email phone')
+        .populate('donors.donor', 'name phone bloodGroup city state')
+        .sort({ createdAt: -1 })
+    } else {
+      // For receivers, get their own requests
+      requests = await BloodRequest.find({ requestedBy: req.user.id })
+        .populate('requestedBy', 'name email phone')
+        .populate('donors.donor', 'name phone bloodGroup city state')
+        .sort({ createdAt: -1 })
+    }
 
     res.json(requests)
   } catch (error) {
@@ -236,6 +260,12 @@ router.post('/:id/respond', protect, [
       return res.status(400).json({ message: 'You have already responded to this request' })
     }
 
+    // Check if request has already been accepted by another donor
+    const hasAcceptedDonor = request.donors.some(donor => donor.status === 'accepted')
+    if (hasAcceptedDonor && response === 'accepted') {
+      return res.status(400).json({ message: 'This request has already been accepted by another donor' })
+    }
+
     // Add donor response
     request.donors.push({
       donor: req.user.id,
@@ -251,7 +281,7 @@ router.post('/:id/respond', protect, [
       sender: req.user.id,
       type: 'donor_response',
       title: 'New Donor Response',
-      message: `${req.user.name} has responded to your blood request!`,
+      message: `${req.user.name} has ${response === 'accepted' ? 'accepted' : 'declined'} your blood request!`,
       relatedRequest: request._id,
       priority: request.urgency === 'high' ? 'high' : 'medium'
     });

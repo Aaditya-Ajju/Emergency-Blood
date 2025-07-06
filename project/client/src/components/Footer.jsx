@@ -1,7 +1,53 @@
-import { FaTint, FaHeart, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa'
+import { FaTint, FaHeart, FaPhone, FaEnvelope, FaMapMarkerAlt, FaHandHoldingHeart, FaSearch, FaPlus, FaBell } from 'react-icons/fa'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const Footer = () => {
+  const { user, isAuthenticated } = useAuth();
+
+  // Donor-specific quick links
+  const donorLinks = [
+    { to: "/find-requests", text: "Blood Requests" },
+    { to: "/dashboard", text: "My Dashboard" },
+    { to: "/emergency", text: "Emergency" },
+    { to: "/profile", text: "My Profile" }
+  ];
+
+  // Receiver-specific quick links
+  const receiverLinks = [
+    { to: "/find-donors", text: "Find Donors" },
+    { to: "/blood-request", text: "Request Blood" },
+    { to: "/emergency", text: "Emergency" },
+    { to: "/profile", text: "My Profile" }
+  ];
+
+  // General quick links for non-authenticated users
+  const generalLinks = [
+    { to: "/find-donors", text: "Find Donors" },
+    { to: "/blood-request", text: "Request Blood" },
+    { to: "/emergency", text: "Emergency" },
+    { to: "/register", text: "Become a Donor" }
+  ];
+
+  // Choose links based on user role
+  const quickLinks = user?.role === 'donor' ? donorLinks : 
+                     user?.role === 'receiver' ? receiverLinks : 
+                     generalLinks;
+
+  // Donor-specific description
+  const donorDescription = "Join our community of life-savers. Your blood donation can save up to three lives. Together, we build a healthier community.";
+
+  // Receiver-specific description
+  const receiverDescription = "Connect with verified blood donors in your area. Our platform makes it easy to find the blood you need quickly and safely.";
+
+  // General description for non-authenticated users
+  const generalDescription = "Connecting blood donors with recipients in need. Together, we save lives and build a healthier community.";
+
+  // Choose description based on user role
+  const description = user?.role === 'donor' ? donorDescription : 
+                      user?.role === 'receiver' ? receiverDescription : 
+                      generalDescription;
+
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -12,21 +58,32 @@ const Footer = () => {
               <span className="text-xl font-bold">BloodConnect</span>
             </div>
             <p className="text-gray-400 mb-4">
-              Connecting blood donors with recipients in need. Together, we save lives and build a healthier community.
+              {description}
             </p>
             <div className="flex items-center space-x-2 text-gray-400">
               <FaHeart className="text-primary-500" />
-              <span>Made with love to save lives</span>
+              <span>
+                {user?.role === 'donor' ? 'Made with love to save lives' :
+                 user?.role === 'receiver' ? 'Made with care for your needs' :
+                 'Made with love to save lives'}
+              </span>
             </div>
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              {user?.role === 'donor' ? 'Donor Links' :
+               user?.role === 'receiver' ? 'Receiver Links' :
+               'Quick Links'}
+            </h3>
             <ul className="space-y-2 text-gray-400">
-              <li><Link to="/find-donors" className="hover:text-primary-500 transition-colors">Find Donors</Link></li>
-              <li><Link to="/blood-request" className="hover:text-primary-500 transition-colors">Request Blood</Link></li>
-              <li><Link to="/emergency" className="hover:text-primary-500 transition-colors">Emergency</Link></li>
-              <li><Link to="/register" className="hover:text-primary-500 transition-colors">Become a Donor</Link></li>
+              {quickLinks.map((link, index) => (
+                <li key={index}>
+                  <Link to={link.to} className="hover:text-primary-500 transition-colors">
+                    {link.text}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
           

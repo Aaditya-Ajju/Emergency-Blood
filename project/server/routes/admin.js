@@ -25,7 +25,8 @@ router.get('/stats', protect, authorize('admin'), async (req, res) => {
       totalRequests,
       activeRequests,
       completedRequests,
-      emergencyRequests
+      emergencyRequests,
+      successRate: totalRequests > 0 ? Math.round((completedRequests / totalRequests) * 100) : 0
     }
 
     res.json(stats)
@@ -235,6 +236,21 @@ router.delete('/users/:id', protect, authorize('admin'), async (req, res) => {
     res.json({ message: 'User deleted successfully' })
   } catch (error) {
     console.error('Delete user error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// @desc    Get all blood requests (no pagination) for admin table view
+// @route   GET /api/admin/all-requests
+// @access  Private/Admin
+router.get('/all-requests', protect, authorize('admin'), async (req, res) => {
+  try {
+    const requests = await BloodRequest.find()
+      .populate('requestedBy', 'name email phone')
+      .sort({ createdAt: -1 })
+    res.json(requests)
+  } catch (error) {
+    console.error('Get all admin requests error:', error)
     res.status(500).json({ message: 'Server error' })
   }
 })

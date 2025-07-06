@@ -12,12 +12,12 @@ import Profile from './pages/Profile'
 import BloodRequest from './pages/BloodRequest'
 import FindDonors from './pages/FindDonors'
 import Emergency from './pages/Emergency'
-import AdminDashboard from './pages/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import RequestDetails from './pages/RequestDetails.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import NotificationDetails from './pages/NotificationDetails.jsx'
+import FindRequests from './pages/FindRequests'
 
 function App() {
   return (
@@ -51,11 +51,6 @@ function App() {
                   <FindDonors />
                 </ProtectedRoute>
               } />
-              <Route path="/admin" element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
               <Route path="/requests/:id" element={
                 <ProtectedRoute>
                   <RequestDetails />
@@ -64,6 +59,11 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/notification/:id" element={<NotificationDetails />} />
+              <Route path="/find-requests" element={
+                <ProtectedRoute>
+                  <FindRequests />
+                </ProtectedRoute>
+              } />
             </Routes>
           </main>
           <Footer />

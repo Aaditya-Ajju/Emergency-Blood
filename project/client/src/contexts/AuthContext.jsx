@@ -1,6 +1,5 @@
-import { createContext, useContext, useReducer, useEffect } from 'react'
 import axios from 'axios'
-import { toast } from 'react-toastify'
+import { createContext, useContext, useReducer, useEffect } from 'react'
 
 const AuthContext = createContext()
 
@@ -36,13 +35,10 @@ const authReducer = (state, action) => {
         isAuthenticated: true,
         loading: false
       }
-    case 'AUTH_ERROR':
+    case 'SET_LOADING':
       return {
         ...state,
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        loading: false
+        loading: action.payload
       }
     default:
       return state
@@ -52,28 +48,28 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState)
 
-  // Set token in axios headers
   useEffect(() => {
     if (state.token) {
+      // Set token in axios headers
       axios.defaults.headers.common['Authorization'] = `Bearer ${state.token}`
     } else {
       delete axios.defaults.headers.common['Authorization']
     }
   }, [state.token])
 
-  // Load user on app start
+  // Load user on mount
   useEffect(() => {
     const loadUser = async () => {
       if (state.token) {
         try {
-          const response = await axios.get('/api/auth/me')
+          const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/me`)
           dispatch({ type: 'LOAD_USER', payload: response.data })
         } catch (error) {
-          dispatch({ type: 'AUTH_ERROR' })
           localStorage.removeItem('token')
+          dispatch({ type: 'LOGOUT' })
         }
       } else {
-        dispatch({ type: 'AUTH_ERROR' })
+        dispatch({ type: 'SET_LOADING', payload: false })
       }
     }
     loadUser()
@@ -81,48 +77,40 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password })
-      const { token, user } = response.data
-      
-      localStorage.setItem('token', token)
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } })
-      toast.success('Login successful!')
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, { email, password })
+      localStorage.setItem('token', response.data.token)
+      dispatch({ type: 'LOGIN_SUCCESS', payload: response.data })
       return { success: true }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed')
       return { success: false, error: error.response?.data?.message }
     }
   }
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('/api/auth/register', userData)
-      const { token, user } = response.data
-      
-      localStorage.setItem('token', token)
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } })
-      toast.success('Registration successful!')
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, userData)
+      localStorage.setItem('token', response.data.token)
+      dispatch({ type: 'LOGIN_SUCCESS', payload: response.data })
       return { success: true }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed')
-      return { success: false, error: error.response?.data?.message }
+      if (error.response?.data?.errors) {
+        return { success: false, error: error.response.data.errors.map(e => e.msg).join(', ') }
+      } else {
+        return { success: false, error: error.response?.data?.message }
+      }
     }
   }
 
   const logout = () => {
     localStorage.removeItem('token')
     dispatch({ type: 'LOGOUT' })
-    toast.info('Logged out successfully')
   }
 
-  const value = {
-    ...state,
-    login,
-    register,
-    logout
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ ...state, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => {

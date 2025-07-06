@@ -41,11 +41,18 @@ Blood Help Platform is designed to streamline the process of finding blood donor
    cd ../server && npm install
    ```
 3. **Configure environment variables:**
-   - Create a `.env` file in `server/` with your MongoDB URI and JWT secret:
-     ```env
-     MONGO_URI=your_mongodb_uri
-     JWT_SECRET=your_jwt_secret
-     ```
+   
+   **Frontend (client/.env):**
+   ```env
+   VITE_API_URL=http://localhost:5000
+   ```
+   
+   **Backend (server/.env):**
+   ```env
+   MONGO_URI=your_mongodb_uri
+   JWT_SECRET=your_jwt_secret
+   NODE_ENV=development
+   ```
 4. **Start the backend:**
    ```bash
    cd server
@@ -61,7 +68,37 @@ Blood Help Platform is designed to streamline the process of finding blood donor
 6. **Open your browser:**
    - Visit [http://localhost:5173](http://localhost:5173) (or the port shown in your terminal)
 
+## 🚀 Deployment
 
+### Frontend (Vercel)
+1. **Deploy to Vercel:**
+   ```bash
+   # In client directory
+   npm run build
+   ```
+2. **Set environment variables in Vercel:**
+   ```
+   VITE_API_URL=https://your-backend-url.onrender.com
+   ```
+
+### Backend (Render)
+1. **Deploy to Render:**
+   - Connect your GitHub repository
+   - Set build command: `npm install`
+   - Set start command: `npm start`
+   - Set root directory: `project/server`
+2. **Set environment variables in Render:**
+   ```
+   MONGO_URI=your_mongodb_atlas_uri
+   JWT_SECRET=your_secret_key
+   NODE_ENV=production
+   ```
+
+### Environment Variables Setup
+- **Development:** Use localhost URLs
+- **Production:** Use deployed URLs
+- **Frontend:** Points to backend API
+- **Backend:** Points to MongoDB and contains secrets
 
 ## 🤝 Contributing
 Contributions are welcome! Please open issues or submit pull requests for improvements, bug fixes, or new features.

@@ -1,241 +1,99 @@
 import { useState, useEffect } from 'react'
-import { FaTint, FaMapMarkerAlt, FaFilter, FaSearch, FaPhone, FaUser } from 'react-icons/fa'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
+import { FaTint, FaMapMarkerAlt, FaPhone, FaEnvelope, FaUser } from 'react-icons/fa'
+import { useAuth } from '../contexts/AuthContext'
 import { toast } from 'react-toastify'
 
 const FindDonors = () => {
+  const { user } = useAuth()
   const [donors, setDonors] = useState([])
-  const [filteredDonors, setFilteredDonors] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({
-    bloodGroup: '',
-    city: '',
-    state: '',
-    availability: 'all'
-  })
 
   useEffect(() => {
-    fetchDonors()
-  }, [])
-
-  useEffect(() => {
-    filterDonors()
-  }, [donors, filters])
+    if (user?.role === 'receiver') {
+      fetchDonors()
+    }
+  }, [user])
 
   const fetchDonors = async () => {
     try {
-      const response = await axios.get('/api/donors')
-      setDonors(response.data.donors)
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (user.bloodGroup) params.append('bloodGroup', user.bloodGroup)
+      if (user.city) params.append('city', user.city)
+      params.append('isAvailable', 'true')
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/donors?${params}`)
+      setDonors(Array.isArray(response.data.donors) ? response.data.donors : response.data)
     } catch (error) {
-      toast.error('Failed to fetch donors')
+      toast.error('Error fetching donors')
     } finally {
       setLoading(false)
     }
   }
 
-  const filterDonors = () => {
-    let filtered = donors
-
-    if (filters.bloodGroup) {
-      filtered = filtered.filter(donor => donor.bloodGroup === filters.bloodGroup)
-    }
-
-    if (filters.city) {
-      filtered = filtered.filter(donor => 
-        donor.city.toLowerCase().includes(filters.city.toLowerCase())
-      )
-    }
-
-    if (filters.state) {
-      filtered = filtered.filter(donor => 
-        donor.state.toLowerCase().includes(filters.state.toLowerCase())
-      )
-    }
-
-    if (filters.availability === 'available') {
-      filtered = filtered.filter(donor => donor.isAvailable)
-    } else if (filters.availability === 'not_available') {
-      filtered = filtered.filter(donor => !donor.isAvailable)
-    }
-
-    setFilteredDonors(filtered)
-  }
-
-  const handleFilterChange = (field, value) => {
-    setFilters(prev => ({ ...prev, [field]: value }))
-  }
-
-  const clearFilters = () => {
-    setFilters({
-      bloodGroup: '',
-      city: '',
-      state: '',
-      availability: 'all'
-    })
-  }
-
-  const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Blood Donors</h1>
-          <p className="text-gray-600">Connect with verified blood donors in your area</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Donor</h1>
+          <p className="text-gray-600">
+            As a receiver, you can view and contact available blood donors in your area.
+          </p>
         </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <FaFilter className="text-primary-600 mr-2" />
-              Filters
-            </h2>
-            <button
-              onClick={clearFilters}
-              className="text-sm text-primary-600 hover:text-primary-700"
-            >
-              Clear All
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="form-label">Blood Group</label>
-              <select
-                value={filters.bloodGroup}
-                onChange={(e) => handleFilterChange('bloodGroup', e.target.value)}
-                className="form-input"
-              >
-                <option value="">All Blood Groups</option>
-                {bloodGroups.map((group) => (
-                  <option key={group} value={group}>{group}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="form-label">City</label>
-              <input
-                type="text"
-                value={filters.city}
-                onChange={(e) => handleFilterChange('city', e.target.value)}
-                className="form-input"
-                placeholder="Enter city"
-              />
-            </div>
-
-            <div>
-              <label className="form-label">State</label>
-              <input
-                type="text"
-                value={filters.state}
-                onChange={(e) => handleFilterChange('state', e.target.value)}
-                className="form-input"
-                placeholder="Enter state"
-              />
-            </div>
-
-            <div>
-              <label className="form-label">Availability</label>
-              <select
-                value={filters.availability}
-                onChange={(e) => handleFilterChange('availability', e.target.value)}
-                className="form-input"
-              >
-                <option value="all">All Donors</option>
-                <option value="available">Available</option>
-                <option value="not_available">Not Available</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Results */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {filteredDonors.length} Donors Found
-            </h2>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <FaSearch />
-              <span>Showing {filteredDonors.length} of {donors.length} donors</span>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Donors</h2>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
             </div>
-          </div>
-
-          {filteredDonors.length === 0 ? (
-            <div className="text-center py-12">
-              <FaTint className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Donors Found</h3>
-              <p className="text-gray-500">Try adjusting your filters to find more donors.</p>
+          ) : (!Array.isArray(donors) || donors.length === 0) ? (
+            <div className="text-center py-8">
+              <FaUser className="text-gray-400 text-4xl mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">No donors found matching your criteria.</p>
+              <p className="text-sm text-gray-400">Check back later.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDonors.map((donor) => (
-                <div key={donor._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                        {donor.profileImage ? (
-                          <img 
-                            src={donor.profileImage} 
-                            alt={donor.name} 
-                            className="w-full h-full rounded-full object-cover"
-                          />
-                        ) : (
-                          <FaUser className="text-primary-600" />
-                        )}
+              {donors.map((donor) => (
+                <div key={donor._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <FaTint className="text-red-600 text-xl" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{donor.name}</h3>
+                        <p className="text-sm text-gray-600">{donor.bloodGroup}</p>
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-medium text-gray-900">{donor.name}</h3>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500">
-                        <FaMapMarkerAlt />
-                        <span>{donor.city}, {donor.state}</span>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                        <span className="text-red-600 font-bold text-sm">{donor.bloodGroup}</span>
-                      </div>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      donor.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {donor.isAvailable ? 'Available' : 'Not Available'}
                     </div>
                   </div>
-
                   <div className="space-y-2 mb-4">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Age:</span>
-                      <span className="text-sm font-medium">{donor.age} years</span>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <FaMapMarkerAlt className="mr-2" />
+                      <span>{donor.city}, {donor.state}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Availability:</span>
-                      <span className={`text-sm font-medium ${donor.isAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                        {donor.isAvailable ? 'Available' : 'Not Available'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Last Donation:</span>
-                      <span className="text-sm font-medium">
-                        {donor.lastDonation ? new Date(donor.lastDonation).toLocaleDateString() : 'Never'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <button className="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center space-x-2">
-                      <FaPhone className="text-sm" />
-                      <span>Contact</span>
-                    </button>
-                    <button className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors">
-                      View Profile
-                    </button>
+                    {donor.phone && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <FaPhone className="mr-2" />
+                        <a href={`tel:${donor.phone}`} className="text-red-600 hover:text-red-700">
+                          {donor.phone}
+                        </a>
+                      </div>
+                    )}
+                    {donor.email && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <FaEnvelope className="mr-2" />
+                        <a href={`mailto:${donor.email}`} className="text-red-600 hover:text-red-700">
+                          {donor.email}
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

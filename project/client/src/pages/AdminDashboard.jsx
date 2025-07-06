@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { FaUsers, FaTint, FaHospital, FaChartBar, FaExclamationTriangle } from 'react-icons/fa'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const AdminDashboard = () => {
+  const { user } = useAuth()
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalDonors: 0,
@@ -11,31 +13,32 @@ const AdminDashboard = () => {
     totalRequests: 0,
     activeRequests: 0,
     completedRequests: 0,
-    emergencyRequests: 0
+    emergencyRequests: 0,
+    successRate: 0
   })
   const [recentRequests, setRecentRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate();
 
   useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        const [statsRes, requestsRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_URL}/api/admin/stats`),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/admin/recent-requests`)
+        ])
+        
+        setStats(statsRes.data)
+        setRecentRequests(requestsRes.data)
+      } catch (error) {
+        console.error('Error fetching admin data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
     fetchAdminData()
   }, [])
-
-  const fetchAdminData = async () => {
-    try {
-      const [statsResponse, requestsResponse] = await Promise.all([
-        axios.get('/api/admin/stats'),
-        axios.get('/api/admin/recent-requests')
-      ])
-      
-      setStats(statsResponse.data)
-      setRecentRequests(requestsResponse.data)
-    } catch (error) {
-      console.error('Error fetching admin data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -77,7 +80,7 @@ const AdminDashboard = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="mt-2 text-gray-600">Manage blood requests and monitor platform activity</p>
+          <p className="mt-2 text-gray-600">Welcome back, {user?.name}! Here's an overview of the platform.</p>
         </div>
 
         {/* Stats Grid */}
@@ -105,7 +108,6 @@ const AdminDashboard = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Total Requests</p>
                 <p className="text-2xl font-semibold text-gray-900">{stats.totalRequests}</p>
-                <p className="text-sm text-gray-500">All time requests</p>
               </div>
             </div>
           </div>
@@ -113,12 +115,11 @@ const AdminDashboard = () => {
           <div className="card">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <FaHospital className="h-8 w-8 text-green-600" />
+                <FaUsers className="h-8 w-8 text-yellow-500" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Active Requests</p>
+                <p className="text-sm font-medium text-gray-500">Pending</p>
                 <p className="text-2xl font-semibold text-gray-900">{stats.activeRequests}</p>
-                <p className="text-sm text-gray-500">Pending fulfillment</p>
               </div>
             </div>
           </div>
@@ -126,12 +127,23 @@ const AdminDashboard = () => {
           <div className="card">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <FaExclamationTriangle className="h-8 w-8 text-yellow-600" />
+                <FaChartBar className="h-8 w-8 text-green-500" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Emergency Requests</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.emergencyRequests}</p>
-                <p className="text-sm text-gray-500">High priority</p>
+                <p className="text-sm font-medium text-gray-500">Completed</p>
+                <p className="text-2xl font-semibold text-gray-900">{stats.completedRequests}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <FaChartBar className="h-8 w-8 text-blue-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Success Rate</p>
+                <p className="text-2xl font-semibold text-gray-900">{stats.successRate}%</p>
               </div>
             </div>
           </div>

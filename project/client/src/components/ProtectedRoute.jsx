@@ -16,10 +16,6 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />
-  }
-
   return children
 }
 

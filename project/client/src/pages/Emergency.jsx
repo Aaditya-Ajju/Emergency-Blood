@@ -1,10 +1,29 @@
 import { FaAmbulance, FaPhone, FaMapMarkerAlt, FaTint, FaExclamationTriangle } from 'react-icons/fa'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 const Emergency = () => {
+  const { user } = useAuth()
   const navigate = useNavigate();
   const hospitalsRef = useRef(null);
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    patientName: '',
+    bloodGroup: '',
+    unitsNeeded: '',
+    hospitalName: '',
+    city: '',
+    state: '',
+    requiredBy: '',
+    contactPerson: '',
+    contactPhone: '',
+    urgency: 'high',
+    additionalInfo: ''
+  })
 
   const emergencyContacts = [
     { name: 'National Emergency Services', number: '911', description: 'For all medical emergencies' },
@@ -83,6 +102,37 @@ const Emergency = () => {
       ]
     }
   ]
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const data = {
+        ...formData,
+        unitsNeeded: parseInt(formData.unitsNeeded),
+        requiredBy: new Date(formData.requiredBy).toISOString(),
+        urgency: 'high' // Emergency requests are always high urgency
+      }
+
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/blood-requests`, data)
+      toast.success('Emergency blood request created successfully!')
+      navigate('/dashboard')
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create emergency request')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -238,6 +288,214 @@ const Emergency = () => {
                 </a>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <FaExclamationTriangle className="text-red-600 text-3xl mr-3" />
+                <h1 className="text-3xl font-bold text-gray-900">Emergency Blood Request</h1>
+              </div>
+              <p className="text-gray-600">
+                This is for urgent blood requirements. Your request will be marked as high priority and sent to all available donors immediately.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="patientName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Patient Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="patientName"
+                    name="patientName"
+                    required
+                    value={formData.patientName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter patient's full name"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="bloodGroup" className="block text-sm font-medium text-gray-700 mb-2">
+                    Blood Group Required *
+                  </label>
+                  <select
+                    id="bloodGroup"
+                    name="bloodGroup"
+                    required
+                    value={formData.bloodGroup}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                  >
+                    <option value="">Select Blood Group</option>
+                    {bloodGroups.map((group) => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="unitsNeeded" className="block text-sm font-medium text-gray-700 mb-2">
+                    Units Needed *
+                  </label>
+                  <input
+                    type="number"
+                    id="unitsNeeded"
+                    name="unitsNeeded"
+                    required
+                    min="1"
+                    value={formData.unitsNeeded}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    placeholder="Number of units"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="requiredBy" className="block text-sm font-medium text-gray-700 mb-2">
+                    Required By *
+                  </label>
+                  <input
+                    type="date"
+                    id="requiredBy"
+                    name="requiredBy"
+                    required
+                    value={formData.requiredBy}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="hospitalName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Hospital Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="hospitalName"
+                    name="hospitalName"
+                    required
+                    value={formData.hospitalName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter hospital name"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    required
+                    value={formData.city}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter city"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+                    State *
+                  </label>
+                  <input
+                    type="text"
+                    id="state"
+                    name="state"
+                    required
+                    value={formData.state}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter state"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700 mb-2">
+                    Contact Person *
+                  </label>
+                  <input
+                    type="text"
+                    id="contactPerson"
+                    name="contactPerson"
+                    required
+                    value={formData.contactPerson}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter contact person name"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-2">
+                    Contact Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    id="contactPhone"
+                    name="contactPhone"
+                    required
+                    value={formData.contactPhone}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter contact phone number"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="additionalInfo" className="block text-sm font-medium text-gray-700 mb-2">
+                  Additional Information
+                </label>
+                <textarea
+                  id="additionalInfo"
+                  name="additionalInfo"
+                  rows="4"
+                  value={formData.additionalInfo}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                  placeholder="Any additional information about the emergency..."
+                />
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <FaExclamationTriangle className="text-red-600 mr-2" />
+                  <span className="text-red-800 font-medium">Emergency Notice</span>
+                </div>
+                <p className="text-red-700 mt-2 text-sm">
+                  This request will be marked as HIGH PRIORITY and sent to all available donors immediately. 
+                  Please ensure all information is accurate as this is an emergency situation.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard')}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Creating Emergency Request...' : 'Create Emergency Request'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
